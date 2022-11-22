@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="utf-8">
+		<title></title>
+		<!-- vue -->
+		<script src="./static/vue/2.6.14/vue.min.js"></script>
+		<!-- axios -->
+		<script src="./static/axios/0.25.0/axios.min.js"></script>
+		<!--elementUI -->
+		<link rel="stylesheet" href="./static/element-ui/2.15.7/theme-chalk/index.css">
+		<script src="./static/element-ui/2.15.7/index.js"></script>
+	</head>
+	<body>
+		<div id="app" ref="app" v-loading="channelLoading||searchLoading" element-loading-text="搜索中" >
+			<el-input placeholder="请输入电影名或电视剧名" v-model="searchName" @clear="clearSeach" clearable>
+				<el-button @click="doSearch()" type="primary" slot="append">搜索</el-button>
+			</el-input>
+			<!-- 搜索结果 -->
+			<div v-loading="searchLoading" element-loading-text="搜索中" >
+				<el-empty v-if="searchFlag&&searchResult.length==0" description="没有搜索结果"></el-empty>
+				
+				<div v-for="(o, index) in searchResult" :key="o"  >
+					<el-tag type = "success" effect="plain">【{{o.webSiteName}}】</el-tag> 
+					<el-link type="primary" :href="o.url" target="_blank">{{o.name}}</el-link>
+				</div>
+				
+			</div>
+			
+			<!-- 平台名称 -->
+			<div>
+				平台类型：
+				<el-button :type="channelName=='tx'?'primary':''" @click="channelChange('tx')">腾讯视频</el-button>
+				<el-button :type="channelName=='iqy'?'primary':''"  @click="channelChange('iqy')">爱奇艺</el-button>
+			</div>
+			<div style="margin-top:20px;">
+				视频类型：
+				<el-button :type="typeName=='tv'?'primary':''" @click="typeChange('tv')">电视剧</el-button>
+				<el-button :type="typeName=='mv'?'primary':''"  @click="typeChange('mv')">电影</el-button>
+			</div>
+			
+			<!-- 平台结果 -->
+			<div  v-loading="channelLoading" element-loading-text="平台数据加载中">
+				<el-empty v-if="!channelLoading&&channelResult.length==0" description="没有平台结果">
+				</el-empty>
+				<el-row :gutter="10">
+				  <el-col  :xs="8" :sm="6" :md="6" :lg="4" :xl="3"
+					v-for="(o, index) in channelResult" :key="o"  >
+				    <el-card  :body-style="{ padding: '0px' }" shadow="hover">
+						<div @click="doSearch(o.name)">
+							  <img :src="o.imgUrl" class="image">
+							  <div class="bottom clearfix">
+								<el-link  style="overflow-x: hidden;white-space:nowrap;" type="primary">
+								{{o.name}}
+								</el-link>
+								</div>
+						</div>
+				    </el-card>
+				  </el-col>
+				</el-row>
+				 <el-pagination
+				    layout="prev, jumper, next"
+					:current-page.sync="channelPage"
+					page-sizes="[30]"
+					@current-change="pageChange" >
+				  </el-pagination>
+			</div>
+			
+		</div>
+		<script>
+			new Vue({
+				el: '#app',
+				data(){
+					return {
+					  searchLoading:false,
+					  searchFlag : false,
+					  serverUrl:'http://81.71.88.36:8200',
+					  searchName: '',
+					  searchResult:[],
+					  
+					  channelLoading:false,
+					  channelName:'tx',//默认
+					  typeName:'tv',//默认
+					  channelPage:1,
+					  channelResult:[] 
+					}
+				},
+				mounted(){
+					this.getChannelData();
+				},
+				methods:{
+					doSearch(keyword){
+						let t=this;
+						console.info(keyword)
+						if(keyword){
+							t.searchName=keyword;
+						}
+						if(t.searchName!=''){
+							t.searchLoading=true
+							t.searchResult=[]
+							axios.get(t.serverUrl
+								+"/s/"+t.searchName)
+							.then((res) => {
+								t.searchFlag=true
+								//console.log(res);
+								if(res.data&&res.data.data&&res.data.data.length>0){
+									t.searchResult=res.data.data
+								}
+							})
+							.catch((err) => {
+							  console.log(err);
+							}).finally(x => {
+								t.searchLoading=false
+								document.documentElement.scrollTo({top:0,behavior:"smooth"});
+							});
+						}
+					},
+					clearSeach(){
+						this.searchFlag=false
+						this.searchLoading=false
+						this.searchName=''
+						this.searchResult=[]
+					},
+					channelChange(channelName){
+						let t=this;
+						t.channelName = channelName
+						t.channelPage = 1
+						t.channelResult=[] 
+						t.getChannelData();
+					},
+					typeChange(typeName){
+						let t=this;
+						t.typeName = typeName
+						t.channelPage = 1
+						t.channelResult=[] 
+						t.getChannelData();
+					},
+					pageChange(pageSize){
+						let t=this;
+						t.channelPage = pageSize
+						t.channelResult=[] 
+						t.getChannelData();
+					},
+					getChannelData(){
+						let t=this;
+						t.channelLoading=true
+						axios.get(t.serverUrl+"/dataList"
+							+"/"+t.channelName
+							+"/"+t.typeName
+							+"/"+t.channelPage)
+						.then((res) => {
+							//console.log(res);
+							if(res.data&&res.data.data&&res.data.data.length>0){
+								t.channelResult=res.data.data
+							}
+						})
+						.catch((err) => {
+						  console.log(err);
+						}).finally(x => {
+							t.channelLoading=false
+							t.clearSeach()
+						});;
+					}
+					
+					
+				}
+			})
+		</script>
+	</body>
+</html>
